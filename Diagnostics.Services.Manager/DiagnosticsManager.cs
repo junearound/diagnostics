@@ -54,8 +54,6 @@ namespace Diagnostics.Services.Manager
             return success;
         }
 
- 
-
         public async Task<bool> Unsubscribe() 
         {
             bool success = false;
@@ -107,6 +105,9 @@ namespace Diagnostics.Services.Manager
             {
                 try
                 {
+                    //await Task.Run(() => 
+                    //messageChanel.UpdateMessage(selectedMessage)
+                    //);
                     await ChangeMessage(message);
                     var callback = this.CurrentCallback;
                     //Console.WriteLine($"Try to save: {message.ToString()}");

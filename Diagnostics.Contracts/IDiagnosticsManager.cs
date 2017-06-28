@@ -19,7 +19,7 @@ namespace Diagnostics.Contracts
         Task<bool> Unsubscribe();
 
         [OperationContract(IsOneWay = true)]
-        Task ChangeFilter(string newFilter);
+        Task ChangeFilter(string newFilter);  
 
         [OperationContract(IsOneWay = true)]//(IsOneWay = true, IsTerminating = true)
         Task UpdateMessage(DiagnosticsMessage message);

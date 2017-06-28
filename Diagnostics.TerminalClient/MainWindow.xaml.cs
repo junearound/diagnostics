@@ -18,6 +18,7 @@ using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
 
+
 namespace Diagnostics.TerminalClient
 {
     /// <summary>
@@ -25,123 +26,51 @@ namespace Diagnostics.TerminalClient
     /// </summary>
     public partial class MainWindow : Window
     {
-       private Diagnostics.Contracts.IDiagnosticsManager _channel;
-        private DiagnosticsCallbackHandler clientCallback;
-        private ObservableCollection<DiagnosticsMessage> _messages= new ObservableCollection<DiagnosticsMessage>();
-        private bool subscribed = false;
-        private const string ServiceEndpointUri = "http://localhost:17121/service";
-        private DiagnosticsManagerClient _proxy;
+        private Diagnostics.Contracts.IDiagnosticsManager _channel;
+        private DiagnosticsCallbackHandler _clientCallback;
+        private ObservableCollection<DiagnosticsMessage> _messages = new ObservableCollection<DiagnosticsMessage>();
+        ChannelFactory<IDiagnosticsManager> _channelFactory;
 
         public MainWindow()
         {
             InitializeComponent();
-            InitClient();
-            
+            SetStartState();
+            InitializeChannel();
         }
-
-        private void InitializeClient()
-        {
-            //if (_proxy != null)
-            //{
-            //    try
-            //    {
-            //        _proxy.Close();
-            //    }
-            //    catch
-            //    {
-            //        _proxy.Abort();
-            //    }
-            //    finally
-            //    {
-            //        _proxy = null;
-            //    }
-            //}
-            //clientCallback = new DiagnosticsCallbackHandler();
-           
-            //clientCallback.MessageAdded += (s, message) =>
-            //{
-            //    Dispatcher.Invoke(() => UpdateMessagesList(message));
-            //};
-            //clientCallback.MessageUpdated += (s, message) =>
-            //{
-            //    Dispatcher.Invoke(() => UpdateMessagesList(message));
-            //};
-
-            //var instanceContext = new InstanceContext(clientCallback);
-            //var dualHttpBinding = new WSDualHttpBinding(WSDualHttpSecurityMode.None);
-            //var endpointAddress = new EndpointAddress(ServiceEndpointUri);
-            //_proxy = new DiagnosticsManagerClient(instanceContext, dualHttpBinding, endpointAddress);
-
-
-
-        //    _proxy.Open();
-            //_proxy.Connect();
-            //if (client.InnerChannel.State != System.ServiceModel.CommunicationState.Faulted)
-            //{
-            //    // call service - everything's fine
-            //}
-            //else
-            //{
-            //    // channel faulted - re-create your client and then try again
-            //}
-        }
+  
         private void InitializeChannel()
         {
             try
             {
-                var binding = new WSDualHttpBinding();
-                binding.OpenTimeout = new TimeSpan(0, 10, 0);
-                binding.CloseTimeout = new TimeSpan(0, 10, 0);
-                binding.SendTimeout = new TimeSpan(0, 10, 0);
-                binding.ReceiveTimeout = new TimeSpan(0, 10, 0);//clientBaseAddress="http://localhost:17122/"
-                var address = new EndpointAddress("http://localhost:17121/service");//WSDualHttpBinding_IDiagnosticsManager
-                clientCallback = new DiagnosticsCallbackHandler();
-                var context = new InstanceContext(clientCallback);//todo error
-               // var factory = new DuplexChannelFactory<Diagnostics.Contracts.IDiagnosticsManager>(context, "WSDualHttpBinding_IDiagnosticsManager");
-                      var factory = new DuplexChannelFactory<Diagnostics.Contracts.IDiagnosticsManager>(context, binding, address);
-                //var channelFactory = new ChannelFactory<IDiagnosticsManager>(
-                //                    "WSDualHttpBinding_IDiagnosticsManager"  
-                //                    );
-                _channel = factory.CreateChannel();
-                clientCallback.MessageAdded += (s, message) =>
+                CloseChannel();
+                if (_channelFactory == null)
                 {
-                    Dispatcher.Invoke(() => UpdateMessagesList(message));
-                };
-                clientCallback.MessageUpdated += (s, message) =>
-                {
-                    Dispatcher.Invoke(() => UpdateMessagesList(message));
-                };
+                    _clientCallback = new DiagnosticsCallbackHandler();
+                    var context = new InstanceContext(_clientCallback); 
+                    _channelFactory = new DuplexChannelFactory<Diagnostics.Contracts.IDiagnosticsManager>(context, "WSDualHttpBinding_IDiagnosticsManager");
+                    _clientCallback.MessageAdded += (s, message) =>
+                    {
+                        Dispatcher.Invoke(() => UpdateMessagesList(message));
+                    };
+                    _clientCallback.MessageUpdated += (s, message) =>
+                    {
+                        Dispatcher.Invoke(() => UpdateMessagesList(message));
+                    };
+                }
+                _channel = _channelFactory.CreateChannel();
+                ((ICommunicationObject)_channel).Faulted += new EventHandler(Channel_Faulted);
+                ((ICommunicationObject)_channel).Opened += new EventHandler(Channel_Opened);
+                ((ICommunicationObject)_channel).Closed += new EventHandler(Channel_Closed);
             }
             catch (Exception ex)
             {
-                //if (((IChannel)callback).State == CommunicationState.Opened)
-                MessageBox.Show(ex.Message);
-                // messageChanel = null;//todo dispose
-            }
-        }
-
-        private void InitClient()
-        {
-            try
-            {
-                
-                //InitializeClient();
-                InitializeChannel();
-                txtInfo.Text = "Данные еще не получены....";
-                List<string> filtersList = Enum.GetValues(typeof(SeverityEnum)).Cast<SeverityEnum>().Select(v => v.ToString()).ToList();
-                filtersList.Add("All");
-                severityFilterList.ItemsSource = filtersList;
-                severityFilterList.SelectedValue = "All";
-                resultDataGrid.IsReadOnly = true;
-            }
-            catch (Exception ex) {
-                //if (((IChannel)callback).State == CommunicationState.Opened)
+                CloseChannel();
                 txtInfo.Text = "Не удалось подключиться к серверу";
                 MessageBox.Show(ex.Message);
-               // messageChanel = null;//todo dispose
             }
-            // dispose if err
         }
+        
+
         public void StartLongOperation()
         {//block buttons
          // Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() => this.progressBar.Value = 50));
@@ -170,7 +99,7 @@ namespace Diagnostics.TerminalClient
             btnUnsubscribe.IsEnabled = true;
             severityFilterList.IsEnabled = true;
             if (!resetAll) return;
-            subscribed = true;
+       
             txtInfo.Text = "Прием сообщений начат";
             
             if (resultDataGrid.RowStyle == null)
@@ -182,47 +111,23 @@ namespace Diagnostics.TerminalClient
                 resultDataGrid.RowStyle = rowStyle;
                 resultDataGrid.RowStyle.Setters.Add(RowDoubleClickSetter);
             }
-            //else if (!resultDataGrid.RowStyle.Setters.Contains(RowDoubleClickSetter))
-            //    resultDataGrid.RowStyle.Setters.Add(RowDoubleClickSetter);
-
         }
         private void SetUnsubscribedState()
         {
-            subscribed = false;
             btnSubscribe.IsEnabled = true;
             btnUnsubscribe.IsEnabled = false;
             txtInfo.Text = "Прием сообщений остановлен";
         }
-        private delegate void FaultedInvoker();
-        void InnerDuplexChannel_Closed(object sender, EventArgs e)
+        private void SetStartState()
         {
-            if (!this.Dispatcher.CheckAccess())
-            {
-                this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new FaultedInvoker(HandleProxy));//TODO async
-                return;
-            }
-            HandleProxy();
+            txtInfo.Text = "Данные еще не получены";
+            List<string> filtersList = Enum.GetValues(typeof(SeverityEnum)).Cast<SeverityEnum>().Select(v => v.ToString()).ToList();
+            filtersList.Add("All");
+            severityFilterList.ItemsSource = filtersList;
+            severityFilterList.SelectedValue = "All";
+            resultDataGrid.IsReadOnly = true;
         }
-
-        void InnerDuplexChannel_Opened(object sender, EventArgs e)
-        {
-            if (!this.Dispatcher.CheckAccess())
-            {
-                this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new FaultedInvoker(HandleProxy));
-                return;
-            }
-            HandleProxy();
-        }
-
-        void InnerDuplexChannel_Faulted(object sender, EventArgs e)
-        {
-            if (!this.Dispatcher.CheckAccess())
-            {
-                this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new FaultedInvoker(HandleProxy));
-                return;
-            }
-            HandleProxy();
-        }
+ 
         void  Channel_Closed(object sender, EventArgs e)
         {
             if (!this.Dispatcher.CheckAccess())
@@ -249,7 +154,7 @@ namespace Diagnostics.TerminalClient
             }
             HandleChannel();
         }
-        void Channel_Faulted(object sender, EventArgs e)
+        void  Channel_Faulted(object sender, EventArgs e)
         {
             if (!this.Dispatcher.CheckAccess())
             {
@@ -263,57 +168,7 @@ namespace Diagnostics.TerminalClient
             HandleChannel();
            
         }
-        private void HandleProxy()
-        {
-            if (_proxy != null)
-            {
-                switch (this._proxy.State)
-                {
-                    case CommunicationState.Closed:
-                        _proxy = null;
-                        txtInfo.Text = "Closed";
-                        //chatListBoxMsgs.Items.Clear();
-                        //chatListBoxNames.Items.Clear();
-                        //loginLabelStatus.Content = "Disconnected";
-                        //ShowChat(false);
-                        //ShowLogin(true);
-                        //loginButtonConnect.IsEnabled = true;
-                        break;
-                    case CommunicationState.Closing:
-                        break;
-                    case CommunicationState.Created:
-                        break;
-                    case CommunicationState.Faulted:
-                        _proxy.Abort();
-                        txtInfo.Text = "Faulted";
-                        _proxy = null;
-                        //chatListBoxMsgs.Items.Clear();
-                        //chatListBoxNames.Items.Clear();
-                        //ShowChat(false);
-                        //ShowLogin(true);
-                        //loginLabelStatus.Content = "Disconnected";
-                        //loginButtonConnect.IsEnabled = true;
-                        break;
-                    case CommunicationState.Opened:
-                        txtInfo.Text = "Opened";
-                        //ShowLogin(false);
-                        //ShowChat(true);
-
-                        //chatLabelCurrentStatus.Content = "online";
-                        //chatLabelCurrentUName.Content = this.localClient.Name;
-
-                        //Dictionary<int, Image> images = GetImages();
-                        //Image img = images[loginComboBoxImgs.SelectedIndex];
-                        //chatCurrentImage.Source = img.Source;
-                        break;
-                    case CommunicationState.Opening:
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-        }
+ 
         private void HandleChannel()
         {
             if (_channel != null)
@@ -321,8 +176,7 @@ namespace Diagnostics.TerminalClient
                 switch (((ICommunicationObject)_channel).State)
                 {
                     case CommunicationState.Closed:
-                        _channel = null;
-                        txtInfo.Text = "Closed";
+                        txtInfo.Text = "Соединение закрыто";
                         SetUnsubscribedState();
                         break;
                     case CommunicationState.Closing:
@@ -330,9 +184,8 @@ namespace Diagnostics.TerminalClient
                     case CommunicationState.Created:
                         break;
                     case CommunicationState.Faulted:
-                        //_channel.Abort();
-                        txtInfo.Text = "Faulted";
-                        _channel = null;
+                        CloseChannel();
+                        txtInfo.Text = "Ошибка соединения";
                         SetUnsubscribedState();
                         break;
                     case CommunicationState.Opened:
@@ -351,15 +204,10 @@ namespace Diagnostics.TerminalClient
             try
             {
                 StartLongOperation();
-                if(_channel!=null)//if (_proxy != null)
+                if(Subscribed)
                 {
-
                     bool success = await _channel.Unsubscribe();
-                      //  Task.Run(() =>
-                      //_channel.Unsubscribe()
-                      //);
-                      // bool success = await   _proxy.Unsubscribe();
-                      // _proxy = null;
+                    CloseChannel();
                     Dispatcher.Invoke(() =>
                     {
                         StopLongOperation();
@@ -370,6 +218,7 @@ namespace Diagnostics.TerminalClient
             }
             catch (Exception ex)
             {
+                CloseChannel();
                 MessageBox.Show($"{ex.Message}:              {ex.StackTrace}");
             }
         }
@@ -377,24 +226,14 @@ namespace Diagnostics.TerminalClient
         {
             try
             {
-                if (_channel == null)// if (_proxy == null)
-                    InitClient();
+                 if (_channel == null)
+                    InitializeChannel();
                 string filter = (string)severityFilterList.SelectedItem;
-                //if (_proxy != null)
                 if(_channel!=null)
                 {
                     StartLongOperation();
-                    // _proxy.Open();
-                    ((ICommunicationObject)_channel).Faulted += new EventHandler(Channel_Faulted);
-                    ((ICommunicationObject)_channel).Opened += new EventHandler(Channel_Opened);
-                    ((ICommunicationObject)_channel).Closed += new EventHandler(Channel_Closed);
-                    bool success = await _channel.Subscribe(filter);
-                    //((ICommunicationObject)_channel).ConnectionRecovered += new EventHandler(Channel_Closed);
-                    //callbackSyncProxy.Ping();
-                    // _proxy.InnerDuplexChannel.Faulted += new EventHandler(InnerDuplexChannel_Faulted);
-                    // _proxy.InnerDuplexChannel.Opened += new EventHandler(InnerDuplexChannel_Opened);
-                    // _proxy.InnerDuplexChannel.Closed += new EventHandler(InnerDuplexChannel_Closed);
-                    // bool success = await _proxy.Subscribe(filter);
+                   
+                   bool success = await _channel.Subscribe(filter);
                     Dispatcher.Invoke(() => {
                         StopLongOperation();
                         if (success)
@@ -404,7 +243,7 @@ namespace Diagnostics.TerminalClient
                 }
             }
             catch (TimeoutException ex) {
-                MessageBox.Show(ex.Message);//eeee
+                MessageBox.Show(ex.Message); 
             }
             catch (Exception ex)
             {
@@ -420,8 +259,9 @@ namespace Diagnostics.TerminalClient
        
         public void UpdateMessagesList(DiagnosticsMessage message)
         {
-            if (message == null) return;
-            txtInfo.Text = message.Text;
+            if (message == null)
+                return;
+     
             if (_messages.Any(m => m.Uid == message.Uid))
             {
                 var old = _messages.FirstOrDefault(m => m.Uid == message.Uid);
@@ -438,110 +278,123 @@ namespace Diagnostics.TerminalClient
         }
         private async void Row_DoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (!subscribed || resultDataGrid.SelectedItem == null)
+            if (!Subscribed || resultDataGrid.SelectedItem == null)
                 return;
             DiagnosticsMessage selectedMessage = resultDataGrid.SelectedItem as DiagnosticsMessage;
             try
             {
-                if(_channel != null && !selectedMessage.IsRead)//if (_proxy != null&&!selectedMessage.IsRead)
+                 if(_channel != null && !selectedMessage.IsRead)
                 {
                     StartLongOperation();
                     selectedMessage.IsRead = true;
-                    //await _proxy.UpdateMessage(selectedMessage);
                     await _channel.UpdateMessage(selectedMessage);//.ConfigureAwait(true);  
-                    //await Task.Run(() => 
-                    //messageChanel.UpdateMessage(selectedMessage)
-                    //);
+
                     Dispatcher.Invoke(() => { txtInfo.Text = "Сообщение обновлено";
                         StopLongOperation();
                         SetSubscribedState(false); });
                 }
-            }
-            catch (TimeoutException timeProblem)
-            {
-                MessageBox.Show($"timeout");
-                //Console.WriteLine("The service operation timed out. " + timeProblem.Message);
-                // Console.ReadLine();
-            }
-            catch (CommunicationException commProblem)
-            {
-                MessageBox.Show($"comm");
-                //  Console.WriteLine("There was a communication problem. " + commProblem.Message);
-                // Console.ReadLine();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"{ex.Message}:              {ex.StackTrace}");
             }
         }
-        private async  void SeverityFilter_SelectionChanged(object sender, RoutedEventArgs e)
+        private async void SeverityFilter_SelectionChanged(object sender, RoutedEventArgs e)
         {
             ComboBox comboBox = (ComboBox)sender;
-            if (!subscribed || comboBox.SelectedItem == null|| _channel==null)
+            if (!Subscribed || comboBox.SelectedItem == null || _channel == null)
                 return;
-                string filter = (string)comboBox.SelectedItem;
-                DiagnosticsMessage selectedMessage = resultDataGrid.SelectedItem as DiagnosticsMessage;
-                try
+            string filter = (string)comboBox.SelectedItem;
+            DiagnosticsMessage selectedMessage = resultDataGrid.SelectedItem as DiagnosticsMessage;
+            try
+            {
+                if (_channel != null)
                 {
-                    if( _channel!=null)//if (_proxy != null)
-                    {
-                        StartLongOperation();
-                       // await  _proxy.ChangeFilter(filter);
+                    StartLongOperation();
                     await _channel.ChangeFilter(filter);
-                    Dispatcher.Invoke(() => {
-                            txtInfo.Text = "Фильтр обновлен";
-                            StopLongOperation();
-                            SetSubscribedState(false);
-                        });
-                    }
+                    Dispatcher.Invoke(() =>
+                    {
+                        txtInfo.Text = "Фильтр обновлен";
+                        StopLongOperation();
+                        SetSubscribedState(false);
+                    });
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"{ex.Message}:              {ex.StackTrace}");
-                }
-            
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"{ex.Message}:              {ex.StackTrace}");
+            }
         }
         
         private async void MainWindow_Closing(object sender, CancelEventArgs e)
         {
-            // protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
-            // //private void Window_Unloaded(object sender, RoutedEventArgs e)
-  //          if (subscribed&& _proxy != null)
- //           {
-  //              try
-  //              {
-                    //if (_proxy.State == CommunicationState.Opened)
-  //                  await _proxy.Unsubscribe();
-  //                  _proxy.Close();
-   //             }
-   //             catch
-   //             {
-   //                 _proxy.Abort();
-   //             }
-               // bool success = await  _proxy.Unsubscribe();
-    //        }
-            //   if (host != null)
-            //  messageChanel
-            //  MessageBox.Show("Closing called");
-
-            //if (this.Dispatcher.Is.isDataDirty)
-            //{
-            //    string msg = "Data is dirty. Close without saving?";
-            //    MessageBoxResult result =
-            //      MessageBox.Show(
-            //        msg,
-            //        "Data App",
-            //        MessageBoxButton.YesNo,
-            //        MessageBoxImage.Warning);
-            //    if (result == MessageBoxResult.No)
-            //    {
-            //        // If user doesn't want to close, cancel closure
-            //        e.Cancel = true;
-            //    }
-            //}
+       
+            if (_channel!=null&&((ICommunicationObject)_channel).State == CommunicationState.Opened)
+            {
+                await _channel.Unsubscribe();
+            }
+            CloseChannel();
+            CloseChannelFactory();
         }
 
+        private void CloseChannel()
+        {
+            try
+            {
+                if (_channel != null)
+                {
 
+                    ICommunicationObject commObj = null;
+
+                    if (_channel is ICommunicationObject)
+                        commObj = (ICommunicationObject)_channel;
+
+                    if (commObj.State == CommunicationState.Faulted)
+                        commObj.Abort();
+                    else
+                        try
+                        {
+                            commObj.Close();
+                        }
+                        catch
+                        {
+                            commObj.Abort();
+                            throw;
+                        }
+                    _channel = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+        private void CloseChannelFactory()
+        {
+            try
+            {
+                if (_channelFactory != null)
+                {
+                    if (_channelFactory.State == CommunicationState.Faulted)
+                        _channelFactory.Abort();
+                    else
+                        try
+                        {
+                            _channelFactory.Close();
+                        }
+                        catch
+                        {
+                            _channelFactory.Abort();
+                            throw;
+                        }
+                    _channelFactory = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
         public ObservableCollection<DiagnosticsMessage> DiagnosticsMessages
         {
             get
@@ -549,9 +402,18 @@ namespace Diagnostics.TerminalClient
                 return this._messages;
             }
         }
-
+        public bool Subscribed
+        {
+            get
+            {
+                if (_channel != null && ((ICommunicationObject)_channel).State == CommunicationState.Opened)
+                {
+                    return true;
+                }
+                return false;
+            }
+        }
     }
 }
 
-
-
+ 

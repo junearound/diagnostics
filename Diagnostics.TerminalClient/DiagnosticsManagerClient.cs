@@ -32,27 +32,5 @@ namespace Diagnostics.TerminalClient
         }
 
     }
-    //endPoint.Behaviors.Add(new MyBehavior());
-    ////or
-    //foreach (var endPoint in host.Description.Endpoints)
-    //endPoint.Behaviors.Add(new MyBehavior());
-    //public class MyBehavior : IEndpointBehavior
-    //{
-    //    public void AddBindingParameters(ServiceEndpoint endpoint,
-    //        BindingParameterCollection bindingParameters)
-    //    {
-    //    }
-    //    public void ApplyClientBehavior(ServiceEndpoint endpoint,
-    //        ClientRuntime clientRuntime)
-    //    {
-    //    }
-    //    public void ApplyDispatchBehavior(ServiceEndpoint endpoint,
-    //        EndpointDispatcher endpointDispatcher)
-    //    {
-    //        endpointDispatcher.DispatchRuntime.AutomaticInputSessionShutdown = false;
-    //    }
-    //    public void Validate(ServiceEndpoint endpoint)
-    //    {
-    //    }
-    //}
+ 
 }
