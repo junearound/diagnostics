@@ -65,7 +65,7 @@ namespace Diagnostics.Services.Manager
                     if (_subscribers.Any(s => s.Callback == callback))
                     {
                         _subscribers.RemoveAll(x => x.Callback == callback);
-                        Console.WriteLine("Удалена подписка для канала : {callback.GetHashCode()}");
+                        Console.WriteLine($"Удалена подписка для канала : {callback.GetHashCode()}");
                         success = true;
                     }
                 }
@@ -257,6 +257,13 @@ namespace Diagnostics.Services.Manager
             {
                 return OperationContext.Current.GetCallbackChannel<IDiagnosticsManagerCallback>();
             }
+        }
+
+        ~DiagnosticsManager()//TODO remove
+        {
+            if (_repository != null && _repository is IDisposable)
+                ((IDisposable)_repository).Dispose();
+
         }
     }
 }

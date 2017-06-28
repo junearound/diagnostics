@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace Diagnostics.Services.Dispatcher
 {
     [ServiceBehavior(
-    InstanceContextMode = InstanceContextMode.PerSession,
+    InstanceContextMode = InstanceContextMode.PerSession,//TODO real sessions
     ConcurrencyMode = ConcurrencyMode.Multiple)]
     //[InstanceProviderBehavior]
     public class DiagnosticsDispatcher : IDiagnosticsDispatcher 

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Diagnostics.DataAccess
 {
  
-    public class DiagnosticsRepository : IDiagnosticsRepository
+    public class DiagnosticsRepository : IDiagnosticsRepository, IDisposable
     {
         private readonly DiagnosticsDBContext _context;
         public DiagnosticsRepository(DiagnosticsDBContext context)
@@ -64,6 +64,26 @@ namespace Diagnostics.DataAccess
         public void Save()
         {
             this._context.SaveChanges();
+        }
+
+        private bool disposed = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this.disposed)
+            {
+                if (disposing)
+                {
+                    _context.Dispose();
+                }
+            }
+            this.disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }
