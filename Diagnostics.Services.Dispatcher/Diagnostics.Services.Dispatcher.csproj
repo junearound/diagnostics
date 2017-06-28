@@ -45,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DiagnosticsDispatcher.cs" />
+    <Compile Include="InstanceProviderBehavior.cs" />
     <Compile Include="MessageStorageClient.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

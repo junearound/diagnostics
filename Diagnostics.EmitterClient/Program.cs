@@ -80,8 +80,8 @@ namespace Diagnostics.EmitterClient
                     break;
                 }
             }
-            if (client != null && client.State != CommunicationState.Closed)
-                client.Close();
+            if (client != null)
+                ((IDisposable)client).Dispose();
         }
         private static async Task SendMessageAsync(EmitterClient client, Guid sessionId, CancellationToken token)
         {

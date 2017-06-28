@@ -343,24 +343,12 @@ namespace Diagnostics.TerminalClient
             {
                 if (_channel != null)
                 {
-
                     ICommunicationObject commObj = null;
-
                     if (_channel is ICommunicationObject)
+                    {
                         commObj = (ICommunicationObject)_channel;
-
-                    if (commObj.State == CommunicationState.Faulted)
-                        commObj.Abort();
-                    else
-                        try
-                        {
-                            commObj.Close();
-                        }
-                        catch
-                        {
-                            commObj.Abort();
-                            throw;
-                        }
+                        DisposeCommunicationObject(commObj);
+                    }
                     _channel = null;
                 }
             }
@@ -375,24 +363,35 @@ namespace Diagnostics.TerminalClient
             {
                 if (_channelFactory != null)
                 {
-                    if (_channelFactory.State == CommunicationState.Faulted)
-                        _channelFactory.Abort();
-                    else
-                        try
-                        {
-                            _channelFactory.Close();
-                        }
-                        catch
-                        {
-                            _channelFactory.Abort();
-                            throw;
-                        }
+                    DisposeCommunicationObject(_channelFactory);
                     _channelFactory = null;
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
+            }
+        }
+        private static void DisposeCommunicationObject(ICommunicationObject communicationObject)
+        {
+            if (communicationObject != null)
+            {
+                if (communicationObject.State == CommunicationState.Faulted)
+                    communicationObject.Abort();
+                else
+                    try
+                    {
+                        communicationObject.Close();
+                    }
+                    catch
+                    {
+                        communicationObject.Abort();
+                        throw;
+                    }
+                    //finally
+                    //{
+                    //    ((IDisposable)communicationObject).Dispose();
+                    //}
             }
         }
         public ObservableCollection<DiagnosticsMessage> DiagnosticsMessages

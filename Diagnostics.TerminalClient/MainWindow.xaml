@@ -23,7 +23,7 @@
                   DataContext="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
                   ItemsSource="{Binding DiagnosticsMessages}" 
                    HorizontalAlignment="Stretch" 
-   HorizontalContentAlignment="Stretch" 
+                   HorizontalContentAlignment="Stretch" 
                   ScrollViewer.CanContentScroll="True" 
       ScrollViewer.VerticalScrollBarVisibility="Auto"
       ScrollViewer.HorizontalScrollBarVisibility="Auto" Grid.ColumnSpan="2">

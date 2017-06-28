@@ -11,7 +11,7 @@ using Diagnostics.DataAccess;
 
 namespace Diagnostics.Services.Manager
 {
-   // [InstanceProviderBehavior]//when the InstanceContextMode is SingleCall the IInstanceProvider is not invoked to create the instance
+   
     [ServiceBehavior(InstanceContextMode = InstanceContextMode.Single,
        ConcurrencyMode = ConcurrencyMode.Multiple, 
         UseSynchronizationContext = false, 
@@ -22,8 +22,8 @@ namespace Diagnostics.Services.Manager
         private static readonly List<IDiagnosticsManagerCallback> subscribers = new List<IDiagnosticsManagerCallback>();
         private static readonly List<Subscriber> _subscribers = new List<Subscriber>();
         private static readonly object _sycnRoot = new object();
+        private static readonly object _syncO = new object();//TODO remove? other service for repository with InstanceContextMode = PerCall
 
-        
         public DiagnosticsManager(IDiagnosticsRepository repository)
         {
             _repository = repository; 
@@ -106,11 +106,10 @@ namespace Diagnostics.Services.Manager
                 try
                 {
                     //await Task.Run(() => 
-                    //messageChanel.UpdateMessage(selectedMessage)
+                    //ChangeMessage(message);
                     //);
-                    await ChangeMessage(message);
-                    var callback = this.CurrentCallback;
-                    //Console.WriteLine($"Try to save: {message.ToString()}");
+                    bool success = ChangeMessage(message);
+                    var callback = this.CurrentCallback; 
                     lock (_sycnRoot)
                     {
                         for (int i = _subscribers.Count - 1; i >= 0; i--)
@@ -129,7 +128,7 @@ namespace Diagnostics.Services.Manager
                                 {
                                     if (IsFilterSuitable(_subscribers[i].Filter, message))
                                     {
-                                          _subscribers[i].Callback.OnUpdateMessage(message);//await
+                                          _subscribers[i].Callback.OnUpdateMessage(message);
                                     }
                                 }
 
@@ -151,22 +150,17 @@ namespace Diagnostics.Services.Manager
             }
         }
         #endregion
-        #region IMessageStorage Members
+        #region IMessageStorage 
         public async Task SaveMessage(Contracts.DiagnosticsMessage message)
         {
 
             if (message != null)
             {
                 
-                await InsertMessage(message);
+                bool success = InsertMessage(message);
                 
                 lock (_sycnRoot)
                 {
-                    //if (_repository != null)
-                    //{
-                    //    _repository.Insert(message);
-                    //}
-                  
                     for (int i = _subscribers.Count - 1; i >= 0; i--)
                     {
                         if (((ICommunicationObject)_subscribers[i].Callback).State != CommunicationState.Opened)
@@ -195,39 +189,45 @@ namespace Diagnostics.Services.Manager
         }
         #endregion
 
-        public async Task InsertMessage(Contracts.DiagnosticsMessage message)
+        public bool InsertMessage(Contracts.DiagnosticsMessage message)
         {
             Console.WriteLine($"Попытка сохранения сообщения: {message.ToString()}");
+            bool flag = false;
             if (message != null)
             {
-                lock (_sycnRoot)
+                lock (_syncO)
                 {
                     try
                     {
                         if (_repository != null)
                         {
                             _repository.Insert(message);
+                            flag = true;
                         }
 
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"InsertMessage err: Тип:{ex.GetType()} Описание:{ex.Message}");
+                        
                     }
                 }
             }
+            return flag;
         }
-        public async Task ChangeMessage(Contracts.DiagnosticsMessage message)
+        public bool ChangeMessage(Contracts.DiagnosticsMessage message)
         {
+            bool flag = false;
             if (message != null)
             {
-                lock (_sycnRoot)
+                lock (_syncO)
                 {
                     try
                     {
                         if (_repository != null)
                         {
                             _repository.Update(message);
+                            flag = true;
                         }
 
                     }
@@ -237,12 +237,13 @@ namespace Diagnostics.Services.Manager
                     }
                 }
             }
+            return flag;
         }
         private static bool IsFilterSuitable(string filter, Contracts.DiagnosticsMessage message)
         {
             if (string.IsNullOrEmpty(filter))
                 return false;
-            if (filter == "All")//TODO
+            if (filter == "All")//TODO remove
                 return true;
             SeverityEnum severity;
             if (Enum.TryParse(filter, true, out severity))

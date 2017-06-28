@@ -24,7 +24,7 @@ namespace Diagnostics.ServiceHost
         {
 
             _dispatcherServiceHost = new System.ServiceModel.ServiceHost(typeof(DiagnosticsDispatcher));
-
+            _dispatcherServiceHost.Description.Behaviors.Add(new InstanceProviderBehavior());
             _dispatcherServiceHost.Open();
         }
 
@@ -36,14 +36,10 @@ namespace Diagnostics.ServiceHost
 
         private static void StartManagerService()
         {
-
-            // managerServiceHost = new System.ServiceModel.ServiceHost(typeof(DiagnosticsManager));
-            //DiagnosticsRepositoryFactory.Instance.SetRepository(new DiagnosticsRepository(new DiagnosticsDBContext()));
-            //managerServiceHost.Description.Behaviors.Add(new InstanceProviderBehavior());
+            //when the InstanceContextMode is SingleCall the IInstanceProvider is not invoked to create the instance
+            //TODO factory
             IDiagnosticsRepository repository = new DiagnosticsRepository(new DiagnosticsDBContext());
             _managerServiceHost = new System.ServiceModel.ServiceHost(new DiagnosticsManager(repository));
-           // _managerServiceHost = new QueuedServiceHost<IDiagnosticsManager>(new DiagnosticsManager(repository));
-            
             _managerServiceHost.Open();
         }     
 

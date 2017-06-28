@@ -10,6 +10,6 @@ namespace Diagnostics.Services.Manager
     public class Subscriber
     {
         public string Filter { get; set; }
-        public IDiagnosticsManagerCallback Callback { get; set; }
+        public IDiagnosticsManagerCallback Callback { get; set; } 
     }
 }

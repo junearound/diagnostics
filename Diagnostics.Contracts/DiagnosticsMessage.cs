@@ -9,7 +9,7 @@ namespace Diagnostics.Contracts
 {
     [DataContract, Serializable]
     public class DiagnosticsMessage
-    {
+    {  
         [DataMember]
         public int Id { get; set; }
 

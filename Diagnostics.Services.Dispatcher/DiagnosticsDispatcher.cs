@@ -10,21 +10,19 @@ using System.Threading.Tasks;
 
 namespace Diagnostics.Services.Dispatcher
 {
-
- 
-    //[ServiceBehavior(
-    //InstanceContextMode = InstanceContextMode.Single,
-    //ConcurrencyMode = ConcurrencyMode.Multiple)]
     [ServiceBehavior(
     InstanceContextMode = InstanceContextMode.PerSession,
     ConcurrencyMode = ConcurrencyMode.Multiple)]
+    //[InstanceProviderBehavior]
     public class DiagnosticsDispatcher : IDiagnosticsDispatcher 
     {
-        private readonly MessageStorageClient _proxy = new MessageStorageClient();
-        public DiagnosticsDispatcher()
+        private readonly IMessageStorage _proxy;
+        public DiagnosticsDispatcher(IMessageStorage proxy)
         {
-            _proxy.Open();
-           // _proxy = new MessageStorageClient();
+            _proxy = proxy;
+            if (_proxy != null&& _proxy is ICommunicationObject)
+               ( (ICommunicationObject)_proxy).Open();//TODO change
+       
         }
 
         public async Task PushMessageAsync(DiagnosticsMessage msg) 
@@ -38,18 +36,9 @@ namespace Diagnostics.Services.Dispatcher
 
                     string msgDescription = msg.ToString(); 
                     Console.WriteLine($"Новое сообщение: {msgDescription}");
-
-
-                    //MessageStorageClient proxy = new MessageStorageClient();//Create proxy
-                    //proxy.Open();
-                    //proxy.SaveMessage(msg);
-                    //proxy.Close();
-
-                    //_proxy.Open();
                     _proxy.SaveMessage(msg);
-                    //_proxy.Close();
                 }
-                catch (Exception ex)//(FaultException fe)
+                catch (Exception ex)
                 {
                     Console.WriteLine($"Ошибка: {ex.Message}: {ex.StackTrace}");
                 }
@@ -59,7 +48,8 @@ namespace Diagnostics.Services.Dispatcher
 
         ~DiagnosticsDispatcher()//TODO remove
         {
-            _proxy.Close();
+            if (_proxy!=null&&_proxy is IDisposable)
+                ((IDisposable)_proxy).Dispose();
            
         }
 

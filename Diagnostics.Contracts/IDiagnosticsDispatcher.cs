@@ -7,7 +7,7 @@ namespace Diagnostics.Contracts
     [ServiceContract]
     public interface IDiagnosticsDispatcher
     {
-        [OperationContract(IsOneWay = true)]
+        [OperationContract(IsOneWay = true)] 
         Task PushMessageAsync(DiagnosticsMessage msg);
     }
 }
