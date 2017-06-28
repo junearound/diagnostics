@@ -89,9 +89,7 @@ namespace Diagnostics.TerminalClient
             severityFilterList.IsEnabled = true;
             btnSubscribe.IsEnabled = true;
             btnUnsubscribe.IsEnabled = true;
-            //          grid.SelectionChanged += (obj, e) =>
-            //Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
-            //  grid.UnselectAll()));
+           
         }
         private void SetSubscribedState(bool resetAll)
         {
@@ -242,13 +240,9 @@ namespace Diagnostics.TerminalClient
                     
                 }
             }
-            catch (TimeoutException ex) {
-                MessageBox.Show(ex.Message); 
-            }
             catch (Exception ex)
             {
-               // subscribed = false;
-               //TODO dispose
+                CloseChannel();
                 MessageBox.Show($"{ex.Message}:                  {ex.StackTrace}");
             }
           
